@@ -1,162 +1,196 @@
-import { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import StatusBadge from '../components/StatusBadge'
+import {
+  fetchApprovals,
+  approveRequest,
+  rejectRequest,
+  getBackendUrl,
+} from '../services/api'
 
-export default function Approvals() {
-  const [pendingRequests, setPendingRequests] = useState([
-    {
-      id: 'REQ-APP-201',
-      agent: 'Project Manager',
-      tool: 'cloud_storage',
-      action: 'share_external',
-      resource: 'confidential_q3_financials.pdf',
-      destination: 'external_partner@domain.com',
-      reason: 'Cross-boundary data transfer policy requires supervisor authorization.',
-      timestamp: '10:42:15 AM',
-      decision: 'REQUIRE APPROVAL',
-    },
-    {
-      id: 'REQ-APP-202',
-      agent: 'Operations Bot',
-      tool: 'db_admin',
-      action: 'drop_staging_table',
-      resource: 'analytics_staging_v2',
-      destination: 'production_cluster_db',
-      reason: 'Destructive schema modifications require secondary administrator sign-off.',
-      timestamp: '11:15:02 AM',
-      decision: 'REQUIRE APPROVAL',
-    },
-  ])
+const fallbackApprovals = [
+  {
+    id: 'APP-8821',
+    agent: 'Research Assistant',
+    action: 'cloud_storage.export_dataset',
+    resource: 'customer_pii_q3_dump.csv',
+    risk: 'High',
+    reason: 'Data egress policy: Bulk export containing potential PII patterns requires security officer manual sign-off.',
+    timestamp: '2 mins ago',
+    status: 'PENDING',
+  },
+  {
+    id: 'APP-8819',
+    agent: 'Project Manager',
+    action: 'slack_webhook.notify_external',
+    resource: 'https://hooks.slack.com/services/external_vendor',
+    risk: 'Medium',
+    reason: 'Outbound webhook destination not in pre-whitelisted internal network registry.',
+    timestamp: '14 mins ago',
+    status: 'PENDING',
+  },
+  {
+    id: 'APP-8812',
+    agent: 'Security Auditor',
+    action: 'db_admin.elevate_temporary_role',
+    resource: 'cluster-prod-asia-south1',
+    risk: 'Critical',
+    reason: 'Zero-trust JIT privilege escalation request for production database query session.',
+    timestamp: '42 mins ago',
+    status: 'PENDING',
+  },
+]
 
-  const [feedbackMessage, setFeedbackMessage] = useState(null)
+export default function Approvals({ backendOnline }) {
+  const [items, setItems] = useState(fallbackApprovals)
+  const [loading, setLoading] = useState(false)
+  const [notification, setNotification] = useState('')
+  const [isLive, setIsLive] = useState(false)
 
-  const handleApprove = (id) => {
-    setPendingRequests((prev) => prev.filter((item) => item.id !== id))
-    setFeedbackMessage({
-      type: 'approved',
-      text: `Request ${id} approved by admin. Authorized tool execution permitted.`,
-    })
-    setTimeout(() => setFeedbackMessage(null), 4000)
+  const loadApprovals = async () => {
+    setLoading(true)
+    const remote = await fetchApprovals()
+    if (remote && remote.length > 0) {
+      setItems(remote)
+      setIsLive(true)
+    } else {
+      setIsLive(false)
+    }
+    setLoading(false)
   }
 
-  const handleReject = (id) => {
-    setPendingRequests((prev) => prev.filter((item) => item.id !== id))
-    setFeedbackMessage({
-      type: 'rejected',
-      text: `Request ${id} rejected. Gateway blocked tool call; no action was executed.`,
-    })
-    setTimeout(() => setFeedbackMessage(null), 4000)
+  useEffect(() => {
+    loadApprovals()
+  }, [])
+
+  const handleDecision = async (id, decision) => {
+    let result
+    if (decision === 'APPROVED') {
+      result = await approveRequest(id)
+    } else {
+      result = await rejectRequest(id)
+    }
+
+    setItems((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, status: decision } : item))
+    )
+
+    setNotification(
+      `Request ${id} marked as ${decision}${
+        result?.fallback ? ' (Recorded locally - backend offline)' : ' on backend'
+      }`
+    )
+    setTimeout(() => setNotification(''), 4000)
   }
+
+  const pendingCount = items.filter((i) => i.status === 'PENDING').length
 
   return (
     <div className="space-y-6 text-[#E6F1FF] max-w-5xl">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
           <h2 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-            <span className="text-amber-400">🛡</span> Pending Authorization Queue
+            <span className="text-[#00D4FF]">🛡️</span> Human-in-the-Loop Approvals
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Human-in-the-loop security checkpoint for high-impact autonomous actions.
+            Review and adjudicate tool execution requests flagged by Kawach Policy Engine (
+            <code className="text-cyan-300 font-mono">GET /api/approvals</code>,{' '}
+            <code className="text-cyan-300 font-mono">POST /api/approvals/&#123;id&#125;/approve</code>,{' '}
+            <code className="text-cyan-300 font-mono">POST /api/approvals/&#123;id&#125;/reject</code>).
           </p>
         </div>
-        <div className="px-3 py-1 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs font-mono text-amber-400">
-          Pending: {pendingRequests.length}
+
+        <div className="flex items-center gap-3">
+          <span className="px-3 py-1 text-xs font-mono rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20">
+            {pendingCount} Pending Escalations
+          </span>
+
+          <button
+            onClick={loadApprovals}
+            disabled={loading}
+            className="px-3 py-1 text-xs font-mono rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+          >
+            {loading ? (
+              <span className="w-3 h-3 border-2 border-slate-300 border-t-transparent rounded-full animate-spin"></span>
+            ) : (
+              '↻ Refresh'
+            )}
+          </button>
         </div>
       </div>
 
-      {feedbackMessage && (
-        <div
-          className={`p-4 rounded-xl border text-xs font-mono transition-all flex items-center gap-2 ${
-            feedbackMessage.type === 'approved'
-              ? 'bg-emerald-950/60 border-emerald-600/40 text-emerald-300'
-              : 'bg-rose-950/60 border-rose-600/40 text-rose-300'
-          }`}
-        >
-          <span>{feedbackMessage.type === 'approved' ? '✓' : '✕'}</span>
-          <span>{feedbackMessage.text}</span>
+      {notification && (
+        <div className="bg-cyan-500/10 border border-cyan-500/30 text-cyan-300 text-xs px-4 py-2.5 rounded-xl font-mono animate-fade-in flex items-center gap-2">
+          <span>✓</span> {notification}
         </div>
       )}
 
-      {pendingRequests.length === 0 ? (
-        <div className="bg-[#14213D] border border-slate-800/80 rounded-2xl p-12 text-center space-y-2 shadow-lg shadow-black/40">
-          <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto text-lg">
-            ✓
-          </div>
-          <p className="text-sm font-semibold text-slate-200">No Pending Authorizations</p>
-          <p className="text-xs text-slate-500">
-            All intercepted tool actions have been evaluated or processed.
-          </p>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {pendingRequests.map((req) => (
-            <div
-              key={req.id}
-              className="bg-[#14213D] border border-slate-800/80 rounded-2xl p-6 shadow-lg shadow-black/40 space-y-4"
-            >
-              <div className="flex justify-between items-start">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-3">
-                    <span className="font-mono text-xs font-semibold text-[#00D4FF]">
-                      {req.id}
-                    </span>
-                    <span className="text-xs text-slate-500 font-mono">
-                      {req.timestamp}
-                    </span>
-                  </div>
-                  <h3 className="text-base font-semibold text-white">
-                    {req.agent} requests tool execution
-                  </h3>
-                </div>
-                <StatusBadge status={req.decision} />
-              </div>
-
-              {/* Resource & Action Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-[#0B132B] p-4 rounded-xl border border-slate-800 text-xs font-mono">
-                <div>
-                  <span className="text-slate-500 block text-[10px] uppercase">Tool</span>
-                  <span className="text-[#00D4FF] font-semibold">{req.tool}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px] uppercase">Action</span>
-                  <span className="text-slate-200 font-semibold">{req.action}</span>
-                </div>
-                <div>
-                  <span className="text-slate-500 block text-[10px] uppercase">Destination / Scope</span>
-                  <span className="text-slate-400 truncate block">{req.destination}</span>
-                </div>
-                <div className="md:col-span-3 pt-2 border-t border-slate-800/60">
-                  <span className="text-slate-500 block text-[10px] uppercase">Target Resource</span>
-                  <span className="text-amber-300 font-semibold">{req.resource}</span>
-                </div>
-              </div>
-
-              {/* Security Reason */}
-              <div className="bg-slate-900/60 p-3 rounded-xl border border-slate-800/80 text-xs">
-                <span className="text-[10px] font-semibold text-slate-500 uppercase block mb-1">
-                  Kawach Security Gateway Evaluation
+      <div className="space-y-4">
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className={`border rounded-2xl p-5 transition-all shadow-lg shadow-black/30 ${
+              item.status === 'PENDING'
+                ? 'bg-[#14213D] border-slate-800/80 hover:border-slate-700'
+                : 'bg-slate-900/40 border-slate-800/50 opacity-75'
+            }`}
+          >
+            <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-800/60">
+              <div className="flex items-center gap-3">
+                <span className="font-mono text-xs font-bold text-[#00D4FF]">{item.id}</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono">
+                  {item.agent}
                 </span>
-                <p className="text-slate-300">{req.reason}</p>
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end items-center gap-3 pt-2">
-                <button
-                  onClick={() => handleReject(req.id)}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20 transition-all cursor-pointer"
-                >
-                  Reject & Block
-                </button>
-                <button
-                  onClick={() => handleApprove(req.id)}
-                  className="px-5 py-2 rounded-xl text-xs font-semibold bg-emerald-500 text-slate-950 hover:bg-emerald-400 transition-all shadow-md shadow-emerald-500/20 cursor-pointer"
-                >
-                  Approve Execution
-                </button>
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-slate-500 font-mono">{item.timestamp}</span>
+                <StatusBadge status={item.status} />
               </div>
             </div>
-          ))}
-        </div>
-      )}
+
+            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs bg-[#0B132B] p-3 rounded-xl border border-slate-800/60 font-mono">
+              <div>
+                <span className="text-slate-500 block text-[10px]">TARGET ACTION</span>
+                <span className="text-slate-200">{item.action}</span>
+              </div>
+              <div>
+                <span className="text-slate-500 block text-[10px]">TARGET RESOURCE</span>
+                <span className="text-cyan-400 truncate block">{item.resource}</span>
+              </div>
+            </div>
+
+            <p className="mt-3 text-xs text-slate-300 leading-relaxed bg-slate-950/40 p-3 rounded-lg border border-slate-800/50">
+              {item.reason}
+            </p>
+
+            {item.status === 'PENDING' ? (
+              <div className="mt-4 pt-3 border-t border-slate-800/60 flex items-center justify-end gap-3">
+                <button
+                  onClick={() => handleDecision(item.id, 'REJECTED')}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/30 transition-all cursor-pointer font-mono"
+                >
+                  Block Request (POST /reject)
+                </button>
+                <button
+                  onClick={() => handleDecision(item.id, 'APPROVED')}
+                  className="px-4 py-2 text-xs font-semibold rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 transition-all cursor-pointer shadow-lg shadow-emerald-500/10 font-mono"
+                >
+                  Authorize Execution (POST /approve)
+                </button>
+              </div>
+            ) : (
+              <div className="mt-3 pt-2 text-right text-[11px] font-mono text-slate-500">
+                Action decided: <span className="font-bold text-slate-300">{item.status}</span>
+              </div>
+            )}
+          </div>
+        ))}
+
+        {items.length === 0 && (
+          <div className="p-8 text-center bg-[#14213D] border border-slate-800 rounded-2xl text-slate-400 text-xs">
+            No pending escalation requests in queue.
+          </div>
+        )}
+      </div>
     </div>
   )
 }

